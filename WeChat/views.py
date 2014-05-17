@@ -6,15 +6,20 @@ import hashlib
 from django.http import HttpResponse
 from django.utils.encoding import smart_str
 import xml.etree.ElementTree as XMLTree
+from django.views.decorators.csrf import csrf_exempt
+from WeChat.deal import dealText, replyTextXml
 
 
+@csrf_exempt
 def main(request):
     if request.method == 'GET':
         response = HttpResponse(checkSignature(request), content_type="text/plain")
         return response
-    else:
+    elif request.method == 'POST':
         response = HttpResponse(responseMsg(request), content_type="application/xml")
         return response
+    else:
+        return None
 
 
 def checkSignature(request):
@@ -32,21 +37,33 @@ def checkSignature(request):
     if str == signature:
         return echostr
     else:
-        return "hehe"
+        return HttpResponse('Hello World ---by jwfy')
 
 
 def responseMsg(request):
-    raw_xml = smart_str(request.body)
+    raw_xml = smart_str(request.raw_post_data)
     refined_xml = dealxml(XMLTree.fromstring(raw_xml))
 
     #  现在开始分开每种类型的消息
     msgType = refined_xml['MsgType']
     if msgType == 'text':
-        content = dealText(refined_xml['Content'])
+        # content = "你发送的是"+refined_xml['Content']
+        msgText = refined_xml['Content']
+        content = dealText(msgText)
+        return replyTextXml(refined_xml, content)
+    elif msgType == 'image':
+        content = "你发送的是图片"
+        return replyTextXml(refined_xml, content)
+    elif msgType == 'location':
+        content = "你发送的是地理位置"
+        return replyTextXml(refined_xml, content)
+    elif msgType == 'link':
+        content = "你发送的是链接"
         return replyTextXml(refined_xml, content)
 
 
 def dealxml(xmlstr):
+    """把接收到的xml消息解析"""
     msg = {}
     if xmlstr.tag == 'xml':
         for child in xmlstr:
@@ -54,21 +71,8 @@ def dealxml(xmlstr):
     return msg
 
 
-def dealText(Content):
-    return Content
 
 
-def replyTextXml(msg, Content):
-    xml = " <xml>\
-            <ToUserName><![CDATA[%s]]></ToUserName>\
-            <FromUserName><![CDATA[%s]]></FromUserName> \
-            <CreateTime>%s</CreateTime>\
-            <MsgType><![CDATA[%s]]></MsgType>\
-            <Content><![CDATA[%s]]></Content>\
-            <FuncFlag>0</FuncFlag>\
-            </xml>"
-    xml = xml % (msg['FromUserName'], msg['ToUserName'], str(int(time.time())), 'text',  Content)
-    return xml
 
 
 
