@@ -7,10 +7,11 @@ import urllib2
 import xml.etree.ElementTree as XMLTree
 
 YouDaoData = {}
-YouDaoData['YouDaoAPIKey'] = "987935518"
-YouDaoData['YouDaoKEYFrom'] = "sybwechat"
-YouDaoData['YouDaoDoctype'] = "json"
-YouDaoData['YouDaoVersion'] = '1.1'
+YouDaoData['key'] = "987935518"
+YouDaoData['keyfrom'] = "sybwechat"
+YouDaoData['doctype'] = "xml"
+YouDaoData['version'] = '1.1'
+YouDaoData['type'] = 'data'
 YouDaoBasicUrl = 'http://fanyi.youdao.com/openapi.do?'
 
 
@@ -35,13 +36,13 @@ def YouDaoXmlDataDeal(content):
             if child.tag == 'errorCode':
                 """错误码，正常的应该返回0"""
                 if child.text == '20':
-                    replayContent = u'抱歉，您输入的过长，无法翻译'
+                    return u'抱歉，您输入的过长，无法翻译'
                 elif child.text == '30':
-                    replayContent = u'抱歉，无法有效的翻译'
+                    return u'抱歉，无法有效的翻译'
                 elif child.text == '40':
-                    replayContent = u'无法翻译该语言'
+                    return u'无法翻译该语言'
                 elif child.text == '50':
-                    replayContent = u'抱歉，系统出错，请重试'
+                    return u'抱歉，系统出错，请重试'
 
             elif child.tag == 'query':
                 """查询的具体单词"""
@@ -49,10 +50,10 @@ def YouDaoXmlDataDeal(content):
 
             elif child.tag == 'basic':
                 """基本释义"""
-                replayContent = '%s%s\n' % (replayContent, u'【基本词典】')
+                replayContent = '%s%s\n' % (replayContent, u'【基本释义】')
                 for grands in child:
                     if grands.tag == 'phonetic':
-                        replayContent = '%s%s:%s\n' % (replayContent, u'音标', grands.text)
+                        replayContent = '%s%s%s\n' % (replayContent, u'【音标】：', grands.text)
                     elif grands.tag == 'explains':
                         for ex in grands.findall('ex'):
                             replayContent = '%s%s\n' % (replayContent, ex.text)
@@ -61,23 +62,25 @@ def YouDaoXmlDataDeal(content):
                 replayContent = '%s%s\n' % (replayContent, u'【网络释义】')
                 for explain in child.findall('explain'):
                     for key in explain.findall('key'):
-                        replayContent = '%s%s\n' % (replayContent, key.text)
+                        replayContent = '%s%s\t' % (replayContent, key.text)
                     for value in explain.findall('value'):
                         for ex in value.findall('ex'):
-                            replayContent = '%s%s\n' % (replayContent, ex.text)
-    replayContent = '%s%s\n' % (replayContent, u'该功能由有道词典提供')
+                            replayContent = '%s%s\t' % (replayContent, ex.text)
+                    replayContent = '%s\n' % replayContent
     return replayContent
 
 
 def dealText(Content):
-    if Content[:2] == '翻译':
-        return Content[2:]
+    describe = Content.decode('utf-8')[:2].encode('utf-8')
+    if describe == '翻译':
+        text = Content.decode('utf-8')[2:].encode('utf-8')
+        url = YouDaoURL(text)    #获取对应的url
+        # return url
+        XMLData = YouDaoDataDeal(url)    #得到url中的xml数据
+        return XMLData
     else:
         return '暂时功能还在开发中。。。'
         # text = Content[2:]
-        # url = YouDaoURL(text)    #获取对应的url
-        # XMLData = YouDaoDataDeal(url)    #得到url中的xml数据
-        # return YouDaoDataDeal(XMLData)    #根据xml数据，获取相应的数据
 
 
 def replyTextXml(msg, Content):
